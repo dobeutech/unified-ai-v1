@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SendIcon, PlusIcon } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { DEFAULT_MODEL } from "@/lib/constants";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Streamdown } from "streamdown";
+
+const STORAGE_KEY = "unified_ai_gateway_session";
 
 function ModelSelectorHandler({
   modelId,
@@ -37,11 +39,31 @@ function ModelSelectorHandler({
 export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
   const [input, setInput] = useState("");
   const [currentModelId, setCurrentModelId] = useState(modelId);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let id = localStorage.getItem(STORAGE_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(STORAGE_KEY, id);
+    }
+    setSessionId(id);
+  }, []);
 
   const handleModelIdChange = (newModelId: string) => {
     setCurrentModelId(newModelId);
   };
+
+  const requestBody = useCallback(
+    () => ({
+      modelId: currentModelId,
+      sessionId: sessionId ?? undefined,
+      channel: "gateway",
+      taskTag: "chat" as const,
+    }),
+    [currentModelId, sessionId],
+  );
 
   const { messages, error, sendMessage, regenerate, setMessages, stop, status } = useChat();
 
@@ -59,6 +81,9 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
     stop();
     setMessages([]);
     setInput("");
+    const id = crypto.randomUUID();
+    localStorage.setItem(STORAGE_KEY, id);
+    setSessionId(id);
   };
 
   return (
@@ -73,6 +98,9 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
           <PlusIcon className="h-4 w-4" />
         </Button>
         <ThemeToggle />
+        <Button variant="outline" size="sm" className="h-9 text-xs" asChild>
+          <Link href="/dashboard">Usage</Link>
+        </Button>
       </div>
       {!hasMessages && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 animate-fade-in">
@@ -86,7 +114,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  sendMessage({ text: input }, { body: { modelId: currentModelId } });
+                  sendMessage({ text: input }, { body: requestBody() });
                   setInput("");
                 }}
               >
@@ -105,10 +133,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                       className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/60"
                       onKeyDown={(e) => {
                         if (e.metaKey && e.key === "Enter") {
-                          sendMessage(
-                            { text: input },
-                            { body: { modelId: currentModelId } },
-                          );
+                          sendMessage({ text: input }, { body: requestBody() });
                           setInput("");
                         }
                       }}
@@ -118,7 +143,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                       size="icon"
                       variant="ghost"
                       className="h-9 w-9 rounded-xl hover:bg-muted/50"
-                      disabled={!input.trim()}
+                      disabled={!input.trim() || !sessionId}
                     >
                       <SendIcon className="h-4 w-4" />
                     </Button>
@@ -177,7 +202,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
               variant="outline"
               size="sm"
               className="ml-auto transition-all duration-150 ease-out hover:scale-105"
-              onClick={() => regenerate()}
+              onClick={() => regenerate({ body: requestBody() })}
             >
               Retry
             </Button>
@@ -190,7 +215,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              sendMessage({ text: input }, { body: { modelId: currentModelId } });
+              sendMessage({ text: input }, { body: requestBody() });
               setInput("");
             }}
             className="px-4 md:px-8 pb-6 md:pb-8"
@@ -209,10 +234,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                   className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/60 font-medium"
                   onKeyDown={(e) => {
                     if (e.metaKey && e.key === "Enter") {
-                      sendMessage(
-                        { text: input },
-                        { body: { modelId: currentModelId } },
-                      );
+                      sendMessage({ text: input }, { body: requestBody() });
                       setInput("");
                     }
                   }}
@@ -222,7 +244,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                   size="icon"
                   variant="ghost"
                   className="h-9 w-9 rounded-xl hover:bg-accent hover:text-accent-foreground hover:scale-110 transition-all duration-150 ease disabled:opacity-50 disabled:hover:scale-100"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || !sessionId}
                 >
                   <SendIcon className="h-4 w-4" />
                 </Button>
