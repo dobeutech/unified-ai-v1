@@ -31,6 +31,7 @@ export const messages = pgTable("messages", {
   modelId: text("model_id"),
   contentPreview: text("content_preview"),
   contentHash: text("content_hash"),
+  contentRef: text("content_ref"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -94,6 +95,21 @@ export const composioTools = pgTable("composio_tools", {
   toolkitSlug: text("toolkit_slug"),
   raw: jsonb("raw"),
   syncedAt: timestamp("synced_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+/** Tracks Composio (and other) catalog sync operations. */
+export const syncRuns = pgTable("sync_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  source: text("source").notNull(),
+  toolsUpserted: integer("tools_upserted"),
+  pagesProcessed: integer("pages_processed"),
+  toolkitAllowlist: text("toolkit_allowlist"),
+  status: text("status").notNull().default("success"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });

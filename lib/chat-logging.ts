@@ -9,6 +9,7 @@ import { getOrCreateSession } from "@/lib/db/sessions";
 import { sha256Hex } from "@/lib/hash";
 import { estimateCostUsd } from "@/lib/pricing";
 import { upsertSummaryVector } from "@/lib/pinecone-summary";
+import { uploadChatTranscript } from "@/lib/supabase-storage";
 import type { TaskTag } from "@/lib/model-policy";
 
 function previewText(text: string, max = 2000): string {
@@ -36,6 +37,21 @@ export async function persistChatTurn(args: {
     args.channel,
   );
 
+  const storeFullMessages = process.env.STORE_FULL_MESSAGES === "true";
+  let contentRef: string | null = null;
+
+  if (storeFullMessages && (args.userText || args.assistantText)) {
+    contentRef = await uploadChatTranscript({
+      traceId: args.traceId,
+      sessionExternalId: args.sessionExternalId,
+      channel: args.channel,
+      modelId: args.modelId,
+      userText: args.userText,
+      assistantText: args.assistantText,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   await args.db.insert(modelRoutingDecisions).values({
     traceId: args.traceId,
     sessionId: sessionInternalId,
@@ -52,6 +68,7 @@ export async function persistChatTurn(args: {
       modelId: args.modelId,
       contentPreview: previewText(args.userText),
       contentHash: sha256Hex(args.userText),
+      contentRef,
     });
   }
 
@@ -63,6 +80,7 @@ export async function persistChatTurn(args: {
       modelId: args.modelId,
       contentPreview: previewText(args.assistantText),
       contentHash: sha256Hex(args.assistantText),
+      contentRef,
     });
   }
 

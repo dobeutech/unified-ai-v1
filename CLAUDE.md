@@ -76,6 +76,17 @@ Uses `useChat` from `@ai-sdk/react`. Session ID is stored in `localStorage` (`un
 
 `@/*` maps to project root (configured in `tsconfig.json`).
 
+## Claude Code Max vs Next.js Gateway Auth
+
+These are **parallel** configurations, not one env block:
+
+| Surface | Auth mechanism | Where configured |
+|---------|---------------|-----------------|
+| **Claude Code (terminal)** | Vercel AI Gateway proxy for Claude Max subscription. Set `ANTHROPIC_BASE_URL=https://ai-gateway.vercel.sh` + `ANTHROPIC_CUSTOM_HEADERS` with gateway API key in shell env. Login with Anthropic subscription via `claude /login`. | Shell environment (not this repo's `.env.local`) |
+| **This Next.js app** | Vercel OIDC (auto via `vc dev`) or gateway API key via `AI_GATEWAY_BASE_URL`. Uses `createGatewayProvider` from `@ai-sdk/gateway`. | `.env.local` → `AI_GATEWAY_BASE_URL` |
+
+See [Vercel AI Gateway docs](https://vercel.com/docs/ai-gateway) for setup details.
+
 ## Environment
 
 See `.env.example` for all variables. Key groups:

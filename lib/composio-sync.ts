@@ -1,7 +1,8 @@
 import type { AppDatabase } from "@/lib/db/client";
-import { composioTools } from "@/lib/db/schema";
+import { composioTools, syncRuns } from "@/lib/db/schema";
 
 const COMPOSIO_BASE = process.env.COMPOSIO_API_BASE ?? "https://backend.composio.dev";
+const MAX_PAGES = 50;
 
 type ComposioToolItem = {
   slug?: string;
@@ -32,10 +33,17 @@ export async function syncComposioToolsToDb(db: AppDatabase): Promise<{
     throw new Error("COMPOSIO_API_KEY is not set");
   }
 
+  const startedAt = new Date();
+  const toolkitAllowlistRaw = process.env.COMPOSIO_SYNC_TOOLKIT_ALLOWLIST ?? null;
+  const allowlistPrefixes = toolkitAllowlistRaw
+    ? toolkitAllowlistRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+
   let cursor: string | undefined;
   let pages = 0;
   let upserted = 0;
 
+  try {
   for (;;) {
     const url = new URL(`${COMPOSIO_BASE}/api/v3/tools`);
     url.searchParams.set("limit", "100");
@@ -50,6 +58,7 @@ export async function syncComposioToolsToDb(db: AppDatabase): Promise<{
 
     if (!res.ok) {
       const t = await res.text();
+      console.error("[composio-sync] API error:", res.status, t.slice(0, 500));
       throw new Error(`Composio tools sync failed: ${res.status} ${t.slice(0, 500)}`);
     }
 
@@ -67,6 +76,15 @@ export async function syncComposioToolsToDb(db: AppDatabase): Promise<{
         typeof (item.toolkit as { slug?: string }).slug === "string"
           ? (item.toolkit as { slug: string }).slug
           : null;
+
+      if (allowlistPrefixes && toolkitSlug) {
+        const matches = allowlistPrefixes.some((prefix) =>
+          toolkitSlug.startsWith(prefix),
+        );
+        if (!matches) continue;
+      } else if (allowlistPrefixes && !toolkitSlug) {
+        continue;
+      }
 
       await db
         .insert(composioTools)
@@ -103,8 +121,45 @@ export async function syncComposioToolsToDb(db: AppDatabase): Promise<{
         : undefined);
     const next = typeof nextRaw === "string" && nextRaw ? nextRaw : undefined;
     if (!next || items.length === 0) break;
+    if (pages >= MAX_PAGES) {
+      console.warn(
+        `[composio-sync] Hit MAX_PAGES limit (${MAX_PAGES}). Stopping pagination.`,
+      );
+      break;
+    }
     cursor = next;
   }
 
+  try {
+    await db.insert(syncRuns).values({
+      source: "composio",
+      toolsUpserted: upserted,
+      pagesProcessed: pages,
+      toolkitAllowlist: toolkitAllowlistRaw,
+      status: "success",
+      startedAt,
+    });
+  } catch (syncRunErr) {
+    console.error("[composio-sync] Failed to record sync run:", syncRunErr);
+  }
+
   return { upserted, pages };
+
+  } catch (err) {
+    try {
+      await db.insert(syncRuns).values({
+        source: "composio",
+        toolsUpserted: upserted,
+        pagesProcessed: pages,
+        toolkitAllowlist: toolkitAllowlistRaw,
+        status: "error",
+        errorMessage:
+          err instanceof Error ? err.message : String(err),
+        startedAt,
+      });
+    } catch (syncRunErr) {
+      console.error("[composio-sync] Failed to record sync run:", syncRunErr);
+    }
+    throw err;
+  }
 }
