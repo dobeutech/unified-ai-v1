@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { postToolCall } from "./telemetry";
+import { postToolCall } from "@/lib/telemetry";
 
 describe("postToolCall", () => {
   afterEach(() => {
@@ -30,7 +30,7 @@ describe("postToolCall", () => {
     expect(body).toMatchObject({ channel: "cli", ...payload });
   });
 
-  it("strips trailing slash from base URL", async () => {
+  it("strips all trailing slashes from base URL", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
