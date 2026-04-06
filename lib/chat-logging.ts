@@ -68,7 +68,6 @@ export async function persistChatTurn(args: {
       modelId: args.modelId,
       contentPreview: previewText(args.userText),
       contentHash: sha256Hex(args.userText),
-      contentRef,
     });
   }
 
