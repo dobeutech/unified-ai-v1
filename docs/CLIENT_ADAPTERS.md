@@ -5,7 +5,7 @@ How each **surface** relates to this app’s **telemetry** (`usage_events`, `mes
 ## Summary matrix
 
 | Channel / surface | Chat / inference logged by this app? | Tool calls → Composio? | Tool audit → `POST /api/tool-call`? | Typical `channel` string |
-|-------------------|--------------------------------------|-------------------------|--------------------------------------|---------------------------|
+| ----------------- | ------------------------------------ | ---------------------- | ------------------------------------ | ------------------------ |
 | **This Next.js UI** (`/api/chat`) | Yes — gateway stream + `onFinish` | Only if you add tools to the chat route (not default) | N/A for gateway-only chat | `gateway` (default) |
 | **Cursor** | No — unless you proxy chat through this app | Yes — Composio MCP in Cursor | **Optional** — hook or script posts Composio/native tool names | `cursor` |
 | **Claude Code (CLI)** | No — Anthropic bills per their product rules | Yes — if MCP/Composio wired in that environment | **Recommended** — `curl` with `channel: "cli"` | `cli` |

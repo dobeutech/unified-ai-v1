@@ -67,6 +67,10 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
     setSessionId(id);
   }, []);
 
+  useEffect(() => {
+    setCurrentModelId(modelId);
+  }, [modelId]);
+
   const handleModelIdChange = (newModelId: string) => {
     setCurrentModelId(newModelId);
   };
@@ -138,7 +142,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
               >
                 <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-2xl glass-effect shadow-border-medium transition-all duration-200 ease-out">
                   <ModelSelectorHandler
-                    modelId={modelId}
+                    modelId={currentModelId}
                     onModelIdChange={handleModelIdChange}
                   />
                   <div className="flex flex-1 items-center">
@@ -205,6 +209,8 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                         ) : (
                           <div key={`${m.id}-${i}`}>{part.text}</div>
                         );
+                      default:
+                        return null;
                     }
                   })}
                 </div>
@@ -222,7 +228,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
             <div className="flex flex-row gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <AlertDescription className="dark:text-red-400 text-red-600">
-                {error.message.startsWith("AI Gateway requires a valid credit card") ? <div>AI Gateway requires a valid credit card on file to service requests. Please visit your <Link className="underline underline-offset-4" href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card" target="_noblank">dashboard</Link> to add a card and unlock your free credits.</div> : "An error occurred while generating the response."}
+                {error.message.startsWith("AI Gateway requires a valid credit card") ? <div>AI Gateway requires a valid credit card on file to service requests. Please visit your <Link className="underline underline-offset-4" href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card" target="_blank" rel="noopener noreferrer">dashboard</Link> to add a card and unlock your free credits.</div> : "An error occurred while generating the response."}
               </AlertDescription>
             </div>
             <Button
@@ -249,7 +255,7 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
           >
             <div className="flex items-center gap-3 p-4 rounded-2xl glass-effect shadow-border-medium transition-all duration-200 ease-out">
               <ModelSelectorHandler
-                modelId={modelId}
+                modelId={currentModelId}
                 onModelIdChange={handleModelIdChange}
               />
               <div className="flex flex-1 items-center">
