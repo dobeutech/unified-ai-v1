@@ -4,56 +4,97 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**unified-ai-v1** — Next.js app using the Vercel AI Gateway (AI SDK) with optional **Postgres** (Neon/Supabase) for sessions, messages, usage telemetry, tool-call audit rows, and a cached **Composio** tool catalog. Optional **Pinecone** (SDK v6) stores assistant-summary embeddings. Uses **hybrid metering**: gateway usage is logged here; consumer subscriptions (ChatGPT Plus, etc.) are not debited through this app.
+**unified-ai-v1** — Next.js 15 (App Router) chat UI backed by the **Vercel AI Gateway** (`@ai-sdk/gateway` + `ai` SDK v5). Optional **Postgres** (Neon serverless driver) stores sessions, messages, usage telemetry, tool-call audit rows, and a cached Composio tool catalog. Optional **Pinecone** (SDK v6) stores assistant-summary embeddings. Uses **hybrid metering**: gateway usage is logged here; consumer subscriptions (ChatGPT Plus, etc.) are not debited through this app.
 
 ## Commands
 
 ```bash
-pnpm i              # Install dependencies (pnpm 10.6.2 enforced via packageManager field)
-npm install         # Alternative
-vc dev              # Run dev server (preferred — auto-refreshes OIDC token)
-pnpm dev            # Alternative (requires `vc env pull` first; token expires every 12h)
-pnpm build          # Production build
-pnpm lint           # ESLint
-pnpm type-check     # TypeScript check
-pnpm db:push        # Apply Drizzle schema to DATABASE_URL
-pnpm sync:composio  # Upsert Composio tools (needs DATABASE_URL + COMPOSIO_API_KEY)
-node scripts/bootstrap.mjs   # Setup checklist
+pnpm i                        # Install deps (pnpm 10.6.2 enforced via packageManager)
+vc dev                        # Dev server (preferred — auto-refreshes OIDC token for AI Gateway)
+pnpm dev                      # Alternative (needs `vc env pull` first; token expires ~12h)
+pnpm build                    # Production build
+pnpm lint                     # ESLint (next/core-web-vitals + next/typescript)
+pnpm type-check               # tsc --noEmit
+pnpm db:push                  # Apply Drizzle schema to DATABASE_URL
+pnpm db:generate              # Generate Drizzle migration SQL
+pnpm db:studio                # Drizzle Studio (browser DB explorer)
+pnpm sync:composio            # Upsert Composio tools (needs DATABASE_URL + COMPOSIO_API_KEY)
+node scripts/bootstrap.mjs    # Interactive setup checklist
 ```
 
 ## Architecture
 
-### AI Gateway flow
+### Request flow
 
 ```
-Client (useChat) → POST /api/chat { messages, modelId, sessionId, channel, taskTag }
-                → model policy (lib/model-policy.ts) may override modelId by taskTag
-                → gateway(modelId) via @ai-sdk/gateway
-                → stream; onFinish → Postgres (+ optional Pinecone summary)
+Client (useChat from @ai-sdk/react)
+  → POST /api/chat { messages, modelId, sessionId, channel, taskTag }
+  → resolveModelForTask() may override modelId based on taskTag
+  → gateway(modelId) via @ai-sdk/gateway → streamText()
+  → onFinish: persistChatTurn() writes to Postgres + fire-and-forget Pinecone upsert
+  → Response includes x-trace-id, x-session-id, x-model-id headers
 ```
 
-### Memory & telemetry
+### Graceful degradation
 
-- `lib/db/schema.ts` — Drizzle tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`.
-- `app/api/tool-call` — External agents POST tool audit envelopes.
-- `app/api/admin/sync-composio` — Bearer `ADMIN_SECRET`; syncs Composio catalog.
-- `/dashboard` — Usage by channel (requires `DATABASE_URL`).
+The app runs without any external services. Each integration is independently optional:
 
-### Key files
+- **No `DATABASE_URL`**: `getDb()` returns `null`; chat still streams but nothing persists. Dashboard shows a "set DATABASE_URL" message.
+- **No `PINECONE_API_KEY`/`PINECONE_INDEX`**: `upsertSummaryVector()` silently returns. Chat logging completes without embeddings.
+- **No `COMPOSIO_API_KEY`**: Composio sync endpoints return 503. Chat is unaffected.
 
-- `lib/gateway.ts` — Gateway provider singleton.
-- `lib/constants.ts` — `SUPPORTED_MODELS` allowlist.
-- `app/api/chat/route.ts` — Streaming chat + persistence.
-- `components/chat.tsx` — Persists `sessionId` in `localStorage`; links to `/dashboard`.
-- `docs/CLIENT_ADAPTERS.md` — Cursor / CLI integration notes.
-- `docs/architecture-one-pager.md` — Channels, retention, session IDs.
-- `drizzle/0000_init.sql` — Raw SQL alternative to `db:push`.
+### Model policy (`lib/model-policy.ts`)
+
+Clients send a `taskTag` (`chat | planning | codegen | refactor`). The policy function picks an optimal model from `SUPPORTED_MODELS` based on the tag — e.g., `planning` prefers `gpt-5-mini`, `codegen` prefers `gpt-5-nano`. If the requested model isn't in the allowlist, it falls back to `DEFAULT_MODEL`. Every routing decision is persisted to `model_routing_decisions`.
+
+### Persistence pipeline (`lib/chat-logging.ts`)
+
+`persistChatTurn()` runs inside `onFinish` and does four inserts in sequence: routing decision → user message → assistant message → usage event. Content is stored as a 2000-char preview + SHA-256 hash (no full content stored). After inserts, a fire-and-forget Pinecone upsert sends the first 1200 chars of the assistant response as an embedding.
+
+### API routes
+
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/api/chat` | POST | None | Streaming chat (main endpoint) |
+| `/api/models` | GET | None | Returns `SUPPORTED_MODELS` filtered from gateway |
+| `/api/tool-call` | POST | None | External agents log tool audit envelopes (Zod-validated) |
+| `/api/admin/sync-composio` | POST | Bearer `ADMIN_SECRET` | Upserts Composio tool catalog |
+
+### Tool-call audit (`lib/tool-policy.ts`)
+
+External agents (Cursor, CLI) POST to `/api/tool-call` to log tool invocations. `ALLOWED_TOOL_PREFIXES` env (comma-separated) gates which tools are accepted; empty = allow all. Blocked calls still get logged with `allowed = false`.
+
+### Database (Drizzle + Neon)
+
+Schema in `lib/db/schema.ts`. Six tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`. The DB client (`lib/db/client.ts`) uses `@neondatabase/serverless` (HTTP driver, not WebSocket). `drizzle.config.ts` loads `.env.local` then `.env`. Raw SQL alternative: `drizzle/0000_init.sql`.
+
+### Client (`components/chat.tsx`)
+
+Uses `useChat` from `@ai-sdk/react`. Session ID is stored in `localStorage` (`unified_ai_gateway_session`). Model selection updates URL query params. Markdown rendering via `streamdown`. The `requestBody` callback attaches `modelId`, `sessionId`, `channel`, and `taskTag` to every request.
+
+### Path aliases
+
+`@/*` maps to project root (configured in `tsconfig.json`).
 
 ## Environment
 
-See `.env.example`: `AI_GATEWAY_BASE_URL`, `DATABASE_URL`, `COMPOSIO_API_KEY`, `ADMIN_SECRET`, `PINECONE_*`, `ALLOWED_TOOL_PREFIXES`, cost estimate vars.
+See `.env.example` for all variables. Key groups:
 
-**Pinecone:** package is pinned to `@pinecone-database/pinecone@^6.1.2` (v7.1.0 tarball was missing files in npm). `next.config.ts` sets `serverExternalPackages` for the client.
+- **Gateway**: `AI_GATEWAY_BASE_URL` (OIDC-authenticated on Vercel; use `vc dev` locally)
+- **Database**: `DATABASE_URL` (Neon/Supabase Postgres pooler URL)
+- **Composio**: `COMPOSIO_API_KEY`, optional `COMPOSIO_API_BASE`
+- **Pinecone**: `PINECONE_API_KEY`, `PINECONE_INDEX`, optional `PINECONE_NAMESPACE_SUMMARIES`, `PINECONE_EMBED_MODEL`
+- **Cost estimates**: `COST_INPUT_PER_M_TOKENS_USD`, `COST_OUTPUT_PER_M_TOKENS_USD` (defaults: 0.15/0.6)
+- **Admin**: `ADMIN_SECRET` (for sync-composio endpoint)
+- **Tool policy**: `ALLOWED_TOOL_PREFIXES` (comma-separated, empty = allow all)
+
+**Pinecone caveat**: Package pinned to `@pinecone-database/pinecone@^6.1.2` (v7.1.0 tarball was broken on npm). `next.config.ts` lists it in `serverExternalPackages`.
+
+## Key docs
+
+- `docs/architecture-one-pager.md` — Channels, retention, session IDs
+- `docs/CLIENT_ADAPTERS.md` — Cursor / CLI integration patterns
+- `docs/unified-ai/` — Roadmap docs (dashboard metrics, hybrid metering, import checklist)
 
 ## Repository
 

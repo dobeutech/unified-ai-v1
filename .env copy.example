@@ -1,0 +1,26 @@
+# Vercel AI Gateway (OIDC on Vercel; local: vc dev or vc env pull)
+AI_GATEWAY_BASE_URL=
+
+# Postgres (Neon or Supabase pooler)
+DATABASE_URL=
+
+# Composio REST (tool catalog sync)
+COMPOSIO_API_KEY=
+# Optional override (default https://backend.composio.dev)
+# COMPOSIO_API_BASE=
+
+# Pinecone optional summaries namespace
+PINECONE_API_KEY=
+PINECONE_INDEX=
+# PINECONE_NAMESPACE_SUMMARIES=summaries
+# PINECONE_EMBED_MODEL=multilingual-e5-large
+
+# Cost estimates for dashboard (USD per 1M tokens)
+# COST_INPUT_PER_M_TOKENS_USD=0.15
+# COST_OUTPUT_PER_M_TOKENS_USD=0.6
+
+# POST /api/admin/sync-composio
+ADMIN_SECRET=
+
+# Comma-separated tool name prefixes allowed for POST /api/tool-call (empty = all)
+# ALLOWED_TOOL_PREFIXES=GITHUB_,SLACK_
