@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "(tool == 'Edit' || tool == 'Write') && tool_input.file_path matches '\\.(ts|tsx)$'",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd C:/Users/jswil/repos/unified-ai-v1 && npx tsc --noEmit --pretty 2>&1 | head -20"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "(tool == 'Edit' || tool == 'Write') && tool_input.file_path matches '\\.env'",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Hook] BLOCKED: .env files contain secrets — edit manually' >&2; exit 1"
+          }
+        ]
+      }
+    ]
+  }
+}
