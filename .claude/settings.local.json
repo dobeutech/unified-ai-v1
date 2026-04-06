@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__composio__COMPOSIO_SEARCH_TOOLS",
+      "Bash(python3 -c ':*)",
+      "Bash(node -e ':*)",
+      "mcp__composio__COMPOSIO_MULTI_EXECUTE_TOOL"
+    ]
+  }
+}
