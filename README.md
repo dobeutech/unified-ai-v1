@@ -7,8 +7,8 @@ Next.js chat app using the [Vercel AI Gateway](https://vercel.com/docs/ai-gatewa
 ## Quick start
 
 1. Clone and install: `git clone https://github.com/dobeutech/unified-ai-v1.git && cd unified-ai-v1 && pnpm i` (or `npm install`)
-2. Copy [`.env.example`](./.env.example) to `.env.local` and set at least `AI_GATEWAY_BASE_URL` and optionally `DATABASE_URL`
-3. Apply DB schema: `pnpm db:push` (requires `DATABASE_URL`)
+2. Copy [`.env.example`](./.env.example) to `.env.local`. Set `DATABASE_URL` to a **Postgres** pooler URI (`postgresql://…`) when using the dashboard; see [docs/unified-ai/SUPABASE_DATABASE_URL.md](./docs/unified-ai/SUPABASE_DATABASE_URL.md). **AI Gateway:** leave `AI_GATEWAY_BASE_URL` unset to use the SDK default, or use `vc dev` / `vc env pull` so `VERCEL_OIDC_TOKEN` authenticates the gateway.
+3. Apply DB schema: `pnpm db:push` (requires a valid `DATABASE_URL`)
 4. Run: `vc dev` (recommended) or `pnpm dev` after `vc env pull`
 5. Open [http://localhost:3000](http://localhost:3000) — usage stats at `/dashboard`
 
@@ -25,6 +25,8 @@ Run `node scripts/bootstrap.mjs` for a printable checklist.
 | Route | Purpose |
 |--------|---------|
 | `POST /api/chat` | Chat stream; body: `messages`, `modelId`, `sessionId`, `channel`, `taskTag` |
+| `GET /api/models` | Supported model ids |
+| `POST /api/memory/search` | Optional Pinecone summary search (`query`, optional `sessionId`) |
 | `POST /api/tool-call` | Log tool executions from external clients |
 | `POST /api/admin/sync-composio` | `Authorization: Bearer $ADMIN_SECRET` — refresh `composio_tools` |
 

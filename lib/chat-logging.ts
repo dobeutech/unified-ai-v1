@@ -114,6 +114,7 @@ export async function persistChatTurn(args: {
         modelId: args.modelId,
         channel: args.channel,
         taskTag: args.taskTag,
+        sessionExternalId: args.sessionExternalId,
       },
     });
   }

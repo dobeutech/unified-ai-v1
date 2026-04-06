@@ -10,7 +10,7 @@ unified-ai-v1 — bootstrap checklist
 1. Install:        pnpm i   (or npm install)
 2. Link Vercel:    vc link
 3. Dev (OIDC):     vc dev
-4. Env:            copy .env.example → .env.local and fill DATABASE_URL, AI_GATEWAY_BASE_URL
+4. Env:            copy .env.example → .env.local; set DATABASE_URL (postgres:// pooler). Gateway: vc dev / vc env pull (OIDC) or AI_GATEWAY_API_KEY; AI_GATEWAY_BASE_URL optional
 5. DB schema:      pnpm db:push
 6. Composio sync:  COMPOSIO_API_KEY=... pnpm sync:composio
    (or POST /api/admin/sync-composio with Authorization: Bearer $ADMIN_SECRET)

@@ -49,7 +49,7 @@ Clients send a `taskTag` (`chat | planning | codegen | refactor`). The policy fu
 
 ### Persistence pipeline (`lib/chat-logging.ts`)
 
-`persistChatTurn()` runs inside `onFinish` and does four inserts in sequence: routing decision → user message → assistant message → usage event. Content is stored as a 2000-char preview + SHA-256 hash (no full content stored). After inserts, a fire-and-forget Pinecone upsert sends the first 1200 chars of the assistant response as an embedding.
+`persistChatTurn()` runs inside `onFinish` and does four inserts in sequence: routing decision → user message → assistant message → usage event. Content is stored as a 2000-char preview + SHA-256 hash. With `STORE_FULL_MESSAGES=true` plus Supabase storage env, full transcripts are uploaded and `content_ref` is set (see `lib/supabase-storage.ts`). After inserts, a fire-and-forget Pinecone upsert sends the first 1200 chars of the assistant response as an embedding with metadata including `sessionExternalId` for session-scoped search via `POST /api/memory/search`.
 
 ### API routes
 
@@ -57,6 +57,7 @@ Clients send a `taskTag` (`chat | planning | codegen | refactor`). The policy fu
 |-------|--------|------|---------|
 | `/api/chat` | POST | None | Streaming chat (main endpoint) |
 | `/api/models` | GET | None | Returns `SUPPORTED_MODELS` filtered from gateway |
+| `/api/memory/search` | POST | None | Pinecone summary search; body `query`, optional `sessionId`, `topK`, `filter` |
 | `/api/tool-call` | POST | None | External agents log tool audit envelopes (Zod-validated) |
 | `/api/admin/sync-composio` | POST | Bearer `ADMIN_SECRET` | Upserts Composio tool catalog |
 
@@ -66,7 +67,11 @@ External agents (Cursor, CLI) POST to `/api/tool-call` to log tool invocations. 
 
 ### Database (Drizzle + Neon)
 
-Schema in `lib/db/schema.ts`. Six tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`. The DB client (`lib/db/client.ts`) uses `@neondatabase/serverless` (HTTP driver, not WebSocket). `drizzle.config.ts` loads `.env.local` then `.env`. Raw SQL alternative: `drizzle/0000_init.sql`.
+Schema in `lib/db/schema.ts`. Tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`, `sync_runs`. The DB client (`lib/db/client.ts`) uses `@neondatabase/serverless` (HTTP driver, not WebSocket). Invalid `DATABASE_URL` values (e.g. bare `https://…supabase.co`) are ignored with a warning — use a `postgresql://` pooler URI (`docs/unified-ai/SUPABASE_DATABASE_URL.md`). `drizzle.config.ts` loads `.env.local` then `.env`. Raw SQL alternative: `drizzle/0000_init.sql`.
+
+### AI Gateway observability (optional)
+
+`POST /api/chat` passes `providerOptions.gateway` when env is set: `AI_GATEWAY_TAGS` (comma-separated), `AI_GATEWAY_USER_FROM_SESSION=true`, and/or `AI_GATEWAY_USER`. This attributes usage in the Vercel AI Gateway dashboard without changing routing.
 
 ### Client (`components/chat.tsx`)
 
@@ -83,7 +88,7 @@ These are **parallel** configurations, not one env block:
 | Surface | Auth mechanism | Where configured |
 |---------|---------------|-----------------|
 | **Claude Code (terminal)** | Vercel AI Gateway proxy for Claude Max subscription. Set `ANTHROPIC_BASE_URL=https://ai-gateway.vercel.sh` + `ANTHROPIC_CUSTOM_HEADERS` with gateway API key in shell env. Login with Anthropic subscription via `claude /login`. | Shell environment (not this repo's `.env.local`) |
-| **This Next.js app** | Vercel OIDC (auto via `vc dev`) or gateway API key via `AI_GATEWAY_BASE_URL`. Uses `createGatewayProvider` from `@ai-sdk/gateway`. | `.env.local` → `AI_GATEWAY_BASE_URL` |
+| **This Next.js app** | Vercel OIDC (`VERCEL_OIDC_TOKEN` from `vc env pull` / `vc dev`) or `AI_GATEWAY_API_KEY`; optional `AI_GATEWAY_BASE_URL` override. When unset, `@ai-sdk/gateway` uses its **default** gateway endpoint — do not invent JWKS URLs. | `.env.local` |
 
 See [Vercel AI Gateway docs](https://vercel.com/docs/ai-gateway) for setup details.
 
@@ -91,7 +96,7 @@ See [Vercel AI Gateway docs](https://vercel.com/docs/ai-gateway) for setup detai
 
 See `.env.example` for all variables. Key groups:
 
-- **Gateway**: `AI_GATEWAY_BASE_URL` (OIDC-authenticated on Vercel; use `vc dev` locally)
+- **Gateway**: optional `AI_GATEWAY_BASE_URL`; default SDK endpoint + `VERCEL_OIDC_TOKEN` (`vc env pull` / `vc dev`) or `AI_GATEWAY_API_KEY`. Optional tags/user: `AI_GATEWAY_TAGS`, `AI_GATEWAY_USER_FROM_SESSION`, `AI_GATEWAY_USER`
 - **Database**: `DATABASE_URL` (Neon/Supabase Postgres pooler URL)
 - **Composio**: `COMPOSIO_API_KEY`, optional `COMPOSIO_API_BASE`
 - **Pinecone**: `PINECONE_API_KEY`, `PINECONE_INDEX`, optional `PINECONE_NAMESPACE_SUMMARIES`, `PINECONE_EMBED_MODEL`

@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SendIcon, PlusIcon } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type KeyboardEvent,
+} from "react";
 import { DEFAULT_MODEL } from "@/lib/constants";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -16,6 +22,16 @@ import Link from "next/link";
 import { Streamdown } from "streamdown";
 
 const STORAGE_KEY = "unified_ai_gateway_session";
+const CHAT_SEND_HINT_ID = "chat-send-hint";
+
+function sendShortcutKeyDown(
+  e: KeyboardEvent<HTMLInputElement>,
+  send: () => void,
+) {
+  if (e.key !== "Enter" || (!e.metaKey && !e.ctrlKey)) return;
+  e.preventDefault();
+  send();
+}
 
 function ModelSelectorHandler({
   modelId,
@@ -90,12 +106,14 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
     <div className="flex flex-col h-screen overflow-hidden">
       <div className="absolute top-3 left-3 md:top-4 md:left-4 z-10 flex gap-2 animate-fade-in">
         <Button
+          type="button"
           onClick={handleNewChat}
           variant="outline"
           size="icon"
           className="h-9 w-9 shadow-border-small hover:shadow-border-medium bg-background/80 backdrop-blur-sm border-0 hover:bg-background hover:scale-[1.02] transition-all duration-150 ease"
+          aria-label="Start new chat"
         >
-          <PlusIcon className="h-4 w-4" />
+          <PlusIcon className="h-4 w-4" aria-hidden />
         </Button>
         <ThemeToggle />
         <Button variant="outline" size="sm" className="h-9 text-xs" asChild>
@@ -126,17 +144,19 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                   <div className="flex flex-1 items-center">
                     <Input
                       name="prompt"
-                      placeholder="Ask a question..."
+                      placeholder="Ask a question…"
                       onChange={(e) => setInput(e.target.value)}
                       value={input}
                       autoFocus
+                      aria-describedby={CHAT_SEND_HINT_ID}
                       className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/60"
-                      onKeyDown={(e) => {
-                        if (e.metaKey && e.key === "Enter") {
+                      onKeyDown={(e) =>
+                        sendShortcutKeyDown(e, () => {
+                          if (!input.trim() || !sessionId) return;
                           sendMessage({ text: input }, { body: requestBody() });
                           setInput("");
-                        }
-                      }}
+                        })
+                      }
                     />
                     <Button
                       type="submit"
@@ -144,11 +164,18 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                       variant="ghost"
                       className="h-9 w-9 rounded-xl hover:bg-muted/50"
                       disabled={!input.trim() || !sessionId}
+                      aria-label="Send message"
                     >
-                      <SendIcon className="h-4 w-4" />
+                      <SendIcon className="h-4 w-4" aria-hidden />
                     </Button>
                   </div>
                 </div>
+                <p
+                  id={CHAT_SEND_HINT_ID}
+                  className="text-xs text-muted-foreground mt-3 text-center"
+                >
+                  Enter sends · ⌘+Enter or Ctrl+Enter also sends
+                </p>
               </form>
             </div>
           </div>
@@ -228,16 +255,18 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
               <div className="flex flex-1 items-center">
                 <Input
                   name="prompt"
-                  placeholder="Ask a question..."
+                  placeholder="Ask a question…"
                   onChange={(e) => setInput(e.target.value)}
                   value={input}
+                  aria-describedby={CHAT_SEND_HINT_ID}
                   className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/60 font-medium"
-                  onKeyDown={(e) => {
-                    if (e.metaKey && e.key === "Enter") {
+                  onKeyDown={(e) =>
+                    sendShortcutKeyDown(e, () => {
+                      if (!input.trim() || !sessionId) return;
                       sendMessage({ text: input }, { body: requestBody() });
                       setInput("");
-                    }
-                  }}
+                    })
+                  }
                 />
                 <Button
                   type="submit"
@@ -245,11 +274,18 @@ export function Chat({ modelId = DEFAULT_MODEL }: { modelId: string }) {
                   variant="ghost"
                   className="h-9 w-9 rounded-xl hover:bg-accent hover:text-accent-foreground hover:scale-110 transition-all duration-150 ease disabled:opacity-50 disabled:hover:scale-100"
                   disabled={!input.trim() || !sessionId}
+                  aria-label="Send message"
                 >
-                  <SendIcon className="h-4 w-4" />
+                  <SendIcon className="h-4 w-4" aria-hidden />
                 </Button>
               </div>
             </div>
+            <p
+              id={CHAT_SEND_HINT_ID}
+              className="text-xs text-muted-foreground mt-3 text-center px-2"
+            >
+              Enter sends · ⌘+Enter or Ctrl+Enter also sends
+            </p>
           </form>
         </div>
       )}

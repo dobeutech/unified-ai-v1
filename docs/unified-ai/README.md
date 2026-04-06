@@ -11,6 +11,8 @@
 | [DASHBOARD_METRICS_ROADMAP.md](./DASHBOARD_METRICS_ROADMAP.md) | Next metrics from `usage_events` and related tables |
 | [MLA_DELIVERABLE_SCOPE.md](./MLA_DELIVERABLE_SCOPE.md) | Optional long-form MLA doc — scope and outline |
 | [STACK_VERIFICATION.md](./STACK_VERIFICATION.md) | Commands to verify DB, Composio sync, build (CI / local) |
+| [SUPABASE_DATABASE_URL.md](./SUPABASE_DATABASE_URL.md) | Correct `DATABASE_URL` format (pooler vs `https://` project URL) |
+| [VERCEL_ENV_AUDIT.md](./VERCEL_ENV_AUDIT.md) | Env key parity checklist; Composio-assisted Vercel audit notes |
 | [LINEAR_REVIEW_ISSUE.md](./LINEAR_REVIEW_ISSUE.md) | Link to parent Linear issue (DTS-1311) for plan review |
 
 ## Strategy files from Drive

@@ -5,6 +5,7 @@ import {
 } from "ai";
 import { randomUUID } from "node:crypto";
 import { DEFAULT_MODEL, SUPPORTED_MODELS } from "@/lib/constants";
+import { buildGatewayProviderOptions } from "@/lib/gateway-options";
 import { gateway } from "@/lib/gateway";
 import { getDb } from "@/lib/db/client";
 import { persistChatTurn } from "@/lib/chat-logging";
@@ -59,8 +60,11 @@ export async function POST(req: Request) {
   const userText = getLastUserText(messages);
   const db = getDb();
 
+  const gatewayOpts = buildGatewayProviderOptions(sessionExternalId);
+
   const result = streamText({
     model: gateway(modelId),
+    ...(gatewayOpts ? { providerOptions: gatewayOpts } : {}),
     system: "You are a software engineer exploring Generative AI.",
     messages: convertToModelMessages(messages),
     onError: (e) => {

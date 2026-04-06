@@ -40,11 +40,21 @@ Or call `POST /api/admin/sync-composio` with header `Authorization: Bearer <ADMI
 
 ## AI Gateway
 
-Local: `vc dev` (per [CLAUDE.md](../../CLAUDE.md)) or `vc env pull` before `npm run dev`. `AI_GATEWAY_BASE_URL` must be set for chat routes to reach the gateway.
+Local: `vc dev` (per [CLAUDE.md](../../CLAUDE.md)) or `vc env pull` before `npm run dev`. **`AI_GATEWAY_BASE_URL` is optional** — when unset, `@ai-sdk/gateway` uses the default endpoint; authenticate with `VERCEL_OIDC_TOKEN` or `AI_GATEWAY_API_KEY`. Do not set a fake JWKS URL; use the SDK default + OIDC/key.
 
 ## Pinecone (optional)
 
 If `PINECONE_API_KEY` and `PINECONE_INDEX` are unset, summary upserts no-op safely (see [`lib/pinecone-summary.ts`](../../lib/pinecone-summary.ts) behavior in code).
+
+## Smoke (local)
+
+Prerequisites: `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN` from `vc env pull` (otherwise `/api/models` and chat will 401). `DATABASE_URL` optional for streaming; required for persistence and `/dashboard` rows.
+
+1. `GET http://localhost:3000/api/models` — JSON list of allowed models.
+2. `POST /api/chat` — one turn from the UI or `useChat`.
+3. `GET /dashboard` — usage rows when DB is configured.
+
+CI runs `type-check`, `lint`, and `build` on push/PR (see [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
 
 ## Record your verification
 

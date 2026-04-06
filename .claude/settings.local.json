@@ -4,7 +4,9 @@
       "mcp__composio__COMPOSIO_SEARCH_TOOLS",
       "Bash(python3 -c ':*)",
       "Bash(node -e ':*)",
-      "mcp__composio__COMPOSIO_MULTI_EXECUTE_TOOL"
+      "mcp__composio__COMPOSIO_MULTI_EXECUTE_TOOL",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)"
     ]
   }
 }
