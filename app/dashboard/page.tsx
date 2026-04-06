@@ -49,7 +49,11 @@ export default async function DashboardPage() {
       <p className="text-muted-foreground text-sm mb-8">
         Hybrid metering: gateway and external channels log into the same
         Postgres. Subscription-native hosts are separate rows when you post{" "}
-        <code className="bg-muted px-1 rounded">channel</code>.
+        <code className="bg-muted px-1 rounded">channel</code>. Next metrics:{" "}
+        <code className="bg-muted px-1 rounded text-xs">
+          docs/unified-ai/DASHBOARD_METRICS_ROADMAP.md
+        </code>
+        .
       </p>
 
       <section className="mb-10 rounded-xl border p-6">
