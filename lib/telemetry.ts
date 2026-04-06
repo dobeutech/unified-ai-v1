@@ -17,7 +17,8 @@ export async function postToolCall(
   baseUrl: string,
   payload: ToolCallPayload,
 ): Promise<{ ok: boolean; blocked?: boolean; error?: string }> {
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/tool-call`, {
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const res = await fetch(`${normalizedBase}/api/tool-call`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
