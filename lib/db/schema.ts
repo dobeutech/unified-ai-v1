@@ -113,3 +113,15 @@ export const syncRuns = pgTable("sync_runs", {
     .defaultNow()
     .notNull(),
 });
+
+/** Agent principles synced from ~/.claude/rules/ markdown files. */
+export const agentPrinciples = pgTable("agent_principles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  category: text("category"),
+  content: text("content").notNull(),
+  contentHash: text("content_hash").notNull(),
+  appliesTo: text("applies_to"),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
+});

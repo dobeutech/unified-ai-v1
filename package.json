@@ -15,11 +15,15 @@
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "sync:composio": "tsx scripts/sync-composio.ts",
-    "bootstrap": "node scripts/bootstrap.mjs"
+    "sync:principles": "tsx scripts/sync-principles.ts",
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "cli": "tsx scripts/agent-cli.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "2.0.27",
     "@ai-sdk/react": "2.0.123",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.92",
+    "@anthropic-ai/sdk": "^0.82.0",
     "@neondatabase/serverless": "^1.0.2",
     "@pinecone-database/pinecone": "^6.1.2",
     "@radix-ui/react-select": "^2.2.2",
