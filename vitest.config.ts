@@ -17,7 +17,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["lib/**/*.ts"],
-      exclude: ["lib/db/schema.ts", "lib/display-model.ts", "lib/utils.ts"],
+      exclude: ["lib/db/schema.ts", "lib/display-model.ts"],
     },
   },
 });
