@@ -2,6 +2,10 @@
 
 How each **surface** relates to this app’s **telemetry** (`usage_events`, `messages`, `tool_calls`) and **Composio**.
 
+## Relationship to local Claude Code / Codex
+
+This Next.js app does **not** replace your editor or terminal tools. **Claude Code**, **Codex**, and similar CLIs remain where you edit code and where vendor billing rules apply. This repository is the **unified chat + gateway metering + Postgres audit** surface: browser chat hits `POST /api/chat`; optional `curl` or helpers can `POST /api/tool-call` so tool executions land in the same database with a shared `session_id` when you want correlation. For running the stack as-is versus copying routes into another repo, see [ADOPTION_PORTING.md](./ADOPTION_PORTING.md).
+
 ## Summary matrix
 
 | Channel / surface | Chat / inference logged by this app? | Tool calls → Composio? | Tool audit → `POST /api/tool-call`? | Typical `channel` string |

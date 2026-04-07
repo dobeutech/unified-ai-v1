@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**unified-ai-v1** — Next.js 15 (App Router) chat UI backed by the **Vercel AI Gateway** (`@ai-sdk/gateway` + `ai` SDK v5). Optional **Postgres** (Neon serverless driver) stores sessions, messages, usage telemetry, tool-call audit rows, and a cached Composio tool catalog. Optional **Pinecone** (SDK v6) stores assistant-summary embeddings. Uses **hybrid metering**: gateway usage is logged here; consumer subscriptions (ChatGPT Plus, etc.) are not debited through this app.
+**unified-ai-v1** — Next.js 15 (App Router) chat UI backed by the **Vercel AI Gateway** (`@ai-sdk/gateway` + `ai` SDK v5). Optional **Postgres** (`postgres` driver + Drizzle ORM) stores sessions, messages, usage telemetry, tool-call audit rows, and a cached Composio tool catalog. Optional **Pinecone** (SDK v6) stores assistant-summary embeddings. Uses **hybrid metering**: gateway usage is logged here; consumer subscriptions (ChatGPT Plus, etc.) are not debited through this app.
 
 ## Commands
 
@@ -84,9 +84,9 @@ Two logging paths: external agents POST to `/api/tool-call` (HTTP). The Agent SD
 
 `getPrinciples(taskTag?)` queries the `agent_principles` table and returns combined markdown. When `taskTag` is provided, filters to matching rows plus universal principles (`appliesTo IS NULL`). Sync from `~/.claude/rules/*.md` via `pnpm sync:principles`. Principles are injected into the system prompt for both Agent SDK runs and can be used by any model.
 
-### Database (Drizzle + Neon)
+### Database (Drizzle + Postgres)
 
-Schema in `lib/db/schema.ts`. Tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`, `sync_runs`, `agent_principles`. The DB client (`lib/db/client.ts`) uses `@neondatabase/serverless` (HTTP driver, not WebSocket). Invalid `DATABASE_URL` values (e.g. bare `https://…supabase.co`) are ignored with a warning — use a `postgresql://` pooler URI (`docs/unified-ai/SUPABASE_DATABASE_URL.md`). `drizzle.config.ts` loads `.env.local` then `.env`. Raw SQL alternative: `drizzle/0000_init.sql`.
+Schema in `lib/db/schema.ts`. Tables: `sessions`, `messages`, `usage_events`, `model_routing_decisions`, `tool_calls`, `composio_tools`, `sync_runs`, `agent_principles`. The DB client (`lib/db/client.ts`) uses the `postgres` package with Drizzle (`drizzle-orm/postgres-js`), with `prepare: false` for Supabase pgBouncer/transaction pooler compatibility. Invalid `DATABASE_URL` values (e.g. bare `https://…supabase.co`) are ignored with a warning — use a `postgresql://` pooler URI (`docs/unified-ai/SUPABASE_DATABASE_URL.md`). `drizzle.config.ts` loads `.env.local` then `.env`. Raw SQL alternative: `drizzle/0000_init.sql`.
 
 ### AI Gateway observability (optional)
 
@@ -131,14 +131,24 @@ See `.env.example` for all variables. Key groups:
 - **Composio**: `COMPOSIO_API_KEY`, optional `COMPOSIO_API_BASE`
 - **Pinecone**: `PINECONE_API_KEY`, `PINECONE_INDEX`, optional `PINECONE_NAMESPACE_SUMMARIES`, `PINECONE_EMBED_MODEL`
 - **Cost estimates**: `COST_INPUT_PER_M_TOKENS_USD`, `COST_OUTPUT_PER_M_TOKENS_USD` (defaults: 0.15/0.6)
-- **Admin**: `ADMIN_SECRET` (for sync-composio endpoint)
+- **Admin**: `ADMIN_SECRET` (for sync-composio and agent endpoints)
 - **Tool policy**: `ALLOWED_TOOL_PREFIXES` (comma-separated, empty = allow all)
 - **Agent SDK**: `ANTHROPIC_API_KEY` (required for `pnpm cli --agent` and `POST /api/agent`)
+- **Memory**: `ENABLE_MEMORY_CONTEXT=true` activates Pinecone-backed retrieval in `/api/chat` (injects prior conversation context into system prompt)
+- **Full transcripts**: `STORE_FULL_MESSAGES=true` + Supabase storage env (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`) enables full message upload via `lib/supabase-storage.ts`
 
 **Pinecone caveat**: Package pinned to `@pinecone-database/pinecone@^6.1.2` (v7.1.0 tarball was broken on npm). `next.config.ts` lists it in `serverExternalPackages`.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main`: pnpm 10, Node 22, `--frozen-lockfile` install, then `type-check` → `test` → `lint` → `build`. All four must pass.
+
 ## Key docs
 
+- `AGENTS.md` — Cross-session agent behavior, durable conventions, secrets policy, Composio usage patterns
+- `docs/AGENT_NAVIGATION.md` — Start here for agents: repo map, task → files lookup, verification commands
+- `docs/CODEMAPS/` — Hand-maintained API surface and `lib/` module index for fast file discovery
+- `docs/ADOPTION_PORTING.md` — Deploy this app vs embed its routes/libs in another repo
 - `docs/architecture-one-pager.md` — Channels, retention, session IDs
 - `docs/CLIENT_ADAPTERS.md` — Cursor / CLI integration patterns
 - `docs/unified-ai/` — Roadmap docs (dashboard metrics, hybrid metering, import checklist)

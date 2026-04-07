@@ -9,6 +9,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      DD_SITE: datadoghq.com
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +26,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Upload git metadata (Datadog CI)
+        if: ${{ secrets.DD_API_KEY != '' }}
+        run: pnpm exec datadog-ci git-metadata upload
+        continue-on-error: true
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+
       - name: Typecheck
         run: pnpm type-check
 
@@ -35,3 +44,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Upload test results to Datadog
+        if: ${{ always() && secrets.DD_API_KEY != '' }}
+        run: pnpm exec datadog-ci junit upload --service unified-ai-v1 --tags git.repository_url:${{ github.server_url }}/${{ github.repository }} --report junit.xml
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}

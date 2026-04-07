@@ -1,9 +1,9 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { isValidPostgresConnectionString } from "./url";
 import * as schema from "./schema";
 
-export type AppDatabase = NeonHttpDatabase<typeof schema>;
+export type AppDatabase = PostgresJsDatabase<typeof schema>;
 
 let cached: AppDatabase | null | undefined;
 let warnedInvalidUrl = false;
@@ -32,7 +32,9 @@ export function getDb(): AppDatabase | null {
     cached = null;
     return null;
   }
-  const sql = neon(url);
-  cached = drizzle(sql, { schema });
+  // Standard Postgres driver works with both Neon and Supabase
+  // We disable prepared statements (prepare: false) to stay compatible with pgBouncer/Transaction mode.
+  const client = postgres(url, { prepare: false });
+  cached = drizzle(client, { schema });
   return cached;
 }

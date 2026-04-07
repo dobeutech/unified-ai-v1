@@ -14,8 +14,11 @@ Next.js chat app using the [Vercel AI Gateway](https://vercel.com/docs/ai-gatewa
 
 Run `node scripts/bootstrap.mjs` for a printable checklist.
 
-## Docs
+## Documentation
 
+- [docs/AGENT_NAVIGATION.md](./docs/AGENT_NAVIGATION.md) — start here for agents: repo map, task → files, verify commands
+- [docs/ADOPTION_PORTING.md](./docs/ADOPTION_PORTING.md) — run this app vs embed routes/libs in another repo
+- [docs/CODEMAPS/README.md](./docs/CODEMAPS/README.md) — API surface and `lib/` module index
 - [docs/architecture-one-pager.md](./docs/architecture-one-pager.md) — channels, sessions, retention
 - [docs/CLIENT_ADAPTERS.md](./docs/CLIENT_ADAPTERS.md) — Cursor, Claude Code, Composio
 - [docs/unified-ai/README.md](./docs/unified-ai/README.md) — place strategic reports from your drive here

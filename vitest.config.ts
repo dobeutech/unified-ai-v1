@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
+    reporters: ["default", "junit"],
+    outputFile: {
+      junit: "./junit.xml",
+    },
     coverage: {
       provider: "v8",
       include: ["lib/**/*.ts"],

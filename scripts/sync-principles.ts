@@ -5,9 +5,12 @@ config({ path: ".env" });
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { agentPrinciples } from "../lib/db/schema";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import * as schema from "../lib/db/schema";
+
+const { agentPrinciples } = schema;
+import { isValidPostgresConnectionString } from "../lib/db/url";
 import { sha256Hex } from "../lib/hash";
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -40,19 +43,26 @@ async function main() {
     console.error("DATABASE_URL is not set");
     process.exit(1);
   }
+  if (!isValidPostgresConnectionString(url)) {
+    console.error(
+      "[sync-principles] DATABASE_URL must start with postgres:// or postgresql:// (use Supabase Transaction pooler). See docs/unified-ai/SUPABASE_DATABASE_URL.md",
+    );
+    process.exit(1);
+  }
 
   const rulesDir = process.argv[2]
     ? resolve(process.argv[2])
     : join(homedir(), ".claude", "rules");
 
-  const sql = neon(url);
-  const db = drizzle(sql);
+  const client = postgres(url, { prepare: false, connect_timeout: 10 });
+  const db = drizzle(client, { schema });
 
+  try {
   const files = readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
 
   if (files.length === 0) {
     console.log("No .md files found in", rulesDir);
-    process.exit(0);
+    return;
   }
 
   let synced = 0;
@@ -93,7 +103,9 @@ async function main() {
   }
 
   console.log(`\nDone — ${synced} principle(s) synced from ${rulesDir}`);
-  process.exit(0);
+  } finally {
+    await client.end();
+  }
 }
 
 main().catch((err) => {
