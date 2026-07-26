@@ -46,3 +46,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ruflo hub-only policy (memory lives at repos root; never per-repo)
+.swarm/
+.claude-flow/
